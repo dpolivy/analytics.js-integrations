@@ -2,9 +2,9 @@
 SRC= $(wildcard index.js lib/*.js)
 tests ?= *
 BINS= node_modules/.bin
-C= $(BINS)/component
+C= "$(BINS)/component"
 TEST= http://localhost:4202
-PHANTOM= $(BINS)/mocha-phantomjs \
+PHANTOM= "$(BINS)/mocha-phantomjs" \
 	--setting local-to-remote-url-access=true \
 	--setting web-security=false
 
@@ -31,7 +31,7 @@ test: build server test-node
 	@$(PHANTOM) $(TEST)
 
 test-node: node_modules
-	@node_modules/.bin/mocha -R spec test/node.js
+	@"node_modules/.bin/mocha" -R spec test/node.js
 
 test-browser: build server
 	@open $(TEST)
