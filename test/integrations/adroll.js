@@ -1,5 +1,5 @@
 
-describe('AdRoll', function () {
+describe('AdRoll', function(){
 
   var AdRoll = require('integrations/lib/adroll');
   var analytics = require('analytics');
@@ -14,18 +14,18 @@ describe('AdRoll', function () {
     pixId: 'V7TLXL5WWBA5NOU5MOJQW4'
   };
 
-  beforeEach(function () {
+  beforeEach(function(){
     analytics.use(AdRoll);
     adroll = new AdRoll.Integration(settings);
     adroll.initialize(); // noop
   });
 
-  afterEach(function () {
+  afterEach(function(){
     adroll.reset();
     analytics.user().reset();
   });
 
-  it('should have the right settings', function () {
+  it('should have the right settings', function(){
     test(adroll)
       .name('AdRoll')
       .assumesPageview()
@@ -38,58 +38,58 @@ describe('AdRoll', function () {
       .option('pixId', '');
   });
 
-  describe('#initialize', function () {
-    beforeEach(function () {
+  describe('#initialize', function(){
+    beforeEach(function(){
       adroll.load = sinon.spy();
     });
 
-    it('should initialize the adroll variables', function () {
+    it('should initialize the adroll variables', function(){
       adroll.initialize();
       assert(window.adroll_adv_id === settings.advId);
       assert(window.adroll_pix_id === settings.pixId);
     });
 
-    it('should set a user id', function () {
+    it('should not set a user id', function(){
       analytics.user().identify('id');
       adroll.initialize();
-      assert(equal(window.adroll_custom_data, { USER_ID: 'id' }));
+      assert(window.adroll_custom_data == null);
     });
 
-    it('should set window.__adroll_loaded', function () {
+    it('should set window.__adroll_loaded', function(){
       adroll.initialize();
       assert(window.__adroll_loaded === true);
     });
 
-    it('should call #load', function () {
+    it('should call #load', function(){
       adroll.initialize();
       assert(adroll.load.called);
     });
   });
 
-  describe('#loaded', function () {
-    after(function () {
+  describe('#loaded', function(){
+    after(function(){
       window.__adroll = undefined;
     });
 
-    it('should test window.__adroll', function () {
+    it('should test window.__adroll', function(){
       assert(!adroll.loaded());
       window.__adroll = {};
       assert(adroll.loaded());
     });
   });
 
-  describe('#load', function () {
-    beforeEach(function () {
+  describe('#load', function(){
+    beforeEach(function(){
       sinon.stub(adroll, 'load');
       adroll.initialize();
       adroll.load.restore();
     });
 
-    it('should change loaded state', function (done) {
+    it('should change loaded state', function(done){
       assert(!adroll.loaded());
-      adroll.load(function (err) {
+      adroll.load(function(err){
         if (err) return done(err);
-        setTimeout(function () {
+        setTimeout(function(){
           assert(adroll.loaded());
           done();
         }, 1000);
@@ -97,47 +97,105 @@ describe('AdRoll', function () {
     });
   });
 
+  describe('#page', function(){
+    beforeEach(function(done){
+      adroll.on('ready', done);
+      adroll.initialize();
+      window.__adroll.record_user = sinon.spy();
+    });
+
+    it('should track page view with fullName', function(){
+      test(adroll).page('Category', 'Name');
+      assert(window.__adroll.record_user.calledWith({
+        adroll_segments: 'Viewed Category Name Page'
+      }));
+    });
+
+    it('should track unnamed/categorized page', function(){
+      test(adroll).page();
+      assert(window.__adroll.record_user.calledWith({
+        adroll_segments: 'Loaded a Page'
+      }));
+    });
+
+    it('should track unnamed page', function(){
+      test(adroll).page('Category');
+      assert(window.__adroll.record_user.calledWith({
+        adroll_segments: 'Loaded a Page'
+      }));
+    });
+
+    it('should track uncategorized page', function(){
+      test(adroll).page(null, 'Name');
+      assert(window.__adroll.record_user.calledWith({
+        adroll_segments: 'Viewed Name Page'
+      }));
+    });
+  });
+
   describe('#track', function(){
     beforeEach(function(){
       window.__adroll.record_user = sinon.spy();
-    })
+    });
 
-    it('should send events', function(){
-      test(adroll).track('event', {});
-      assert(window.__adroll.record_user.calledWith({
-        adroll_segments: 'event',
-        adroll_conversion_value_in_dollars: 0,
-        order_id: 0
-      }));
-    })
+    describe('event not in events', function(){
+      it('should send events with only adroll_segments', function(){
+        test(adroll).track('event', {});
+        assert(window.__adroll.record_user.calledWith({
+          adroll_segments: 'event'
+        }));
+      });
 
-    it('should track Completed Order', function(){
-      test(adroll).track('Completed Order', { total: 1.99, orderId: 1 });
-      assert(window.__adroll.record_user.calledWith({
-        adroll_segments: 'Completed Order',
-        adroll_conversion_value_in_dollars: 1.99,
-        order_id: 1
-      }));
-    })
+      it('should send events without revenue and order id', function(){
+        test(adroll).track('event', { revenue: 3.99 });
+        assert(window.__adroll.record_user.calledWith({
+          adroll_segments: 'event'
+        }));
+      });
 
-    it('should pass .revenue as conversion value', function(){
-      test(adroll).track('purchase', { revenue: 2.99 });
-      assert(window.__adroll.record_user.calledWith({
-        adroll_segments: 'purchase',
-        adroll_conversion_value_in_dollars: 2.99,
-        order_id: 0
-      }));
-    })
+      it('should pass user id in', function(){
+        analytics.user().identify('id');
+        test(adroll).track('event', { revenue: 3.99 });
+        assert(window.__adroll.record_user.calledWith({
+          adroll_segments: 'event',
+          user_id: 'id'
+        }));
+      });
+    });
 
-    it('should respect .events option', function(){
-      adroll.options.events = { event: 'segment' };
-      test(adroll).track('event', { revenue: 3.99 });
-      assert(window.__adroll.record_user.calledWith({
-        adroll_segments: 'segment',
-        adroll_conversion_value_in_dollars: 3.99,
-        order_id: 0
-      }));
-    })
-  })
+    describe('event in events', function(){
+      beforeEach(function(){
+        adroll.options.events = { event: 'segment' };
+      });
 
+      it('should pass in revenue and order id', function(){
+        test(adroll).track('event', { total: 1.99, orderId: 1 });
+        assert(window.__adroll.record_user.calledWith({
+          adroll_segments: 'segment',
+          adroll_conversion_value_in_dollars: 1.99,
+          order_id: 1
+        }));
+      });
+
+      it('should pass .revenue as conversion value', function(){
+        test(adroll).track('event', { revenue: 2.99 });
+        assert(window.__adroll.record_user.calledWith({
+          adroll_segments: 'segment',
+          adroll_conversion_value_in_dollars: 2.99,
+          order_id: 0
+        }));
+      });
+
+      it('should include the user_id when available', function(){
+        analytics.user().identify('id');
+        test(adroll).track('event', { revenue: 3.99 });
+        assert(window.__adroll.record_user.calledWith({
+          adroll_segments: 'segment',
+          adroll_conversion_value_in_dollars: 3.99,
+          order_id: 0,
+          user_id: 'id'
+        }));
+      });
+    });
+  });
 });
