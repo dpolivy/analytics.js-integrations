@@ -1,4 +1,6 @@
 [
   "google-analytics",
-  "quantcast"
+  "google-analytics-cordova",
+  "quantcast",
+  "quantcast-cordova"
 ]

@@ -72,7 +72,9 @@
   "scripts": [
     "index.js",
     "lib/google-analytics.js",
+    "lib/google-analytics-cordova.js",
     "lib/quantcast.js"
+    "lib/quantcast-cordova.js"
   ],
   "json": [
     "lib/slugs.json"
